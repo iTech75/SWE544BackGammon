@@ -19,10 +19,30 @@ class BGClient(threading.Thread):
         self.__screenBuffer = [["" for x in range(60)] for xx in range(19)]
 
     def run(self):
-        # self.__connection.connect(("localhost", 18475))
-        # self.draw("1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2")
-        while 1:
-            pass
+        user_name = raw_input("Please enter your username > ")
+        self.__connection.connect(("localhost", 18475))
+        self.__connection.send("CONNECT|" + user_name)
+        response = self.__connection.recv(1024)
+        if response == "OK":
+            # self.draw("1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2")
+            while 1:
+                user_choice = self.__show_menu()
+                if user_choice == 1:
+                    self.__play_game()
+
+    def __play_game(self):
+        self.__connection.send("PLAY")
+        response = self.__connection.recv(1024)
+
+
+    def __show_menu(self):
+        print "-------------------------"
+        print "1. PLAY a game"
+        print "2. WATCH a game"
+        print "3. DISCONNECT from server"
+        print "-------------------------"
+        return raw_input("Plaese make your choice (1,2,3) > ")
+
 
     def draw(self, game_state):
         """

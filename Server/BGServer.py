@@ -1,8 +1,7 @@
-import Player
-
 __author__ = 'Tekin.Aytekin'
 import socket
 import threading
+import Player
 
 
 class BGServer(threading.Thread):
@@ -13,7 +12,7 @@ class BGServer(threading.Thread):
         self.__playerDictionary = {}
 
     def run(self):
-        self.__serverSocket.bind(("localhost", 18475))
+        self.__serverSocket.bind(("", 18475))
         self.__serverSocket.listen(5)
         while 1:
             client_socket, client_address = self.__serverSocket.accept()
@@ -25,7 +24,6 @@ class BGServer(threading.Thread):
 
     def add_player_to_dictionary(self, client_address, new_player):
         self.__playerDictionary[client_address] = new_player
-        new_player.start()
 
 
 # Main Module --------------------------------------------------------------------
