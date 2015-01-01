@@ -3,7 +3,6 @@ import Player
 __author__ = 'Tekin.Aytekin'
 import socket
 import threading
-import Queue
 
 
 class BGServer(threading.Thread):
@@ -11,7 +10,7 @@ class BGServer(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.__serverSocket = socket.socket()
-        self.__playerQueue = Queue.Queue()
+        self.__playerDictionary = {}
 
     def run(self):
         self.__serverSocket.bind(("localhost", 18475))
@@ -19,13 +18,13 @@ class BGServer(threading.Thread):
         while 1:
             client_socket, client_address = self.__serverSocket.accept()
             new_player = Player.Player(self, client_socket, client_address)
-            self.add_player_to_queue(new_player)
+            self.add_player_to_dictionary(client_address, new_player)
             new_player.start()
             if __debug__:
                 print "New player arrives to the server"
 
-    def add_player_to_queue(self, new_player):
-        self.__playerQueue.put(new_player)
+    def add_player_to_dictionary(self, client_address, new_player):
+        self.__playerDictionary[client_address] = new_player
         new_player.start()
 
 
