@@ -16,6 +16,7 @@ class BGClient(threading.Thread):
         self.__screenBuffer = [["" for x in range(60)] for xx in range(19)]
         self.__opponentName = "None"
         self.__user_name = "None"
+        self.__color = ""
 
     def run(self):
         self.__user_name = raw_input("Please enter your username > ")
@@ -36,27 +37,28 @@ class BGClient(threading.Thread):
         game_state = "1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2"
         self.__connection.send("PLAY")
         response = self.__connection.recv(1024)
-        if self.__parse_response(response, game_state) == "OK":
+        if self.__parse_response(response, game_state)[0] == "OK":
             # game started, wait for server
             gaming = True
+            self.draw(game_state)
             while gaming:
-                self.draw(game_state)
                 request = self.__connection.recv(1024)
-                response = self.__parse_response(request, game_state)
+                response, game_state = self.__parse_response(request, game_state)
+                self.draw(game_state)
                 self.__connection.send(response)
 
     def __parse_response(self, response, game_status):
         data = response.split("|")
         if data[0] == "OPPONENT":
             self.__opponentName = data[1]
-            return "OK"
+            self.__color = data[2]
+            return "OK", game_status
         elif data[0] == "NOOPPONENT":
             pass
         elif data[0] == "YOURTURN":
-            return self.make_move(data[1])
+            return self.make_move(data[1]), game_status
         elif data[0] == "SETSTATUS":
-            game_status = data[1]
-            return "OK"
+            return "OK", "|".join(data[1:])
         else:
             pass
 
@@ -83,6 +85,10 @@ class BGClient(threading.Thread):
         print "544 BG Client"
         print "-------------"
         _buffer = game_state.split('|')
+
+        for i in range(1, 25):
+            self.__gameStatus[i] = ""
+
         for i in range(len(_buffer)):
             checker_color = "b"
             buffer2 = _buffer[i].split(checker_color)
@@ -93,14 +99,22 @@ class BGClient(threading.Thread):
 
             if buffer2.__len__() == 2:
                 self.__gameStatus[int(buffer2[0])] = checker_color + buffer2[1]
+            else:
+                self.__gameStatus[int(buffer2[0])] = ""
 
-        self.write_to_screen_buffer(0, "  |13 14 15 16 17 18 || 19 20 21 22 23 24|")
+        if self.__color == "b":
+            self.write_to_screen_buffer(0, "  |13 14 15 16 17 18 || 19 20 21 22 23 24|")
+        else:
+            self.write_to_screen_buffer(0, "  |12 11 10 09 08 07 || 06 05 04 03 02 01|")
         self.write_to_screen_buffer(1, "------------------------------------------")
         for line in range(15):
             self.write_to_screen_buffer(line + 2, string.ascii_uppercase[line] +
                                         ".|                  ||                  |")
         self.write_to_screen_buffer(17, "------------------------------------------")
-        self.write_to_screen_buffer(18, "  |12 11 10 09 08 07 || 06 05 04 03 02 01|")
+        if self.__color == "b":
+            self.write_to_screen_buffer(18, "  |12 11 10 09 08 07 || 06 05 04 03 02 01|")
+        else:
+            self.write_to_screen_buffer(18, "  |13 14 15 16 17 18 || 19 20 21 22 23 24|")
 
         for i in range(1, 25):
             if self.__gameStatus[i] != "":
@@ -127,8 +141,12 @@ class BGClient(threading.Thread):
 
         self.write_to_screen_buffer_xy(2, 43, "O_Bar:0")
         self.write_to_screen_buffer_xy(3, 43, "O_Col:0")
-        self.write_to_screen_buffer_xy(4, 43, self.__opponentName)
-        self.write_to_screen_buffer_xy(14, 43, self.__user_name)
+        if self.__color == "b":
+            self.write_to_screen_buffer_xy(4, 43, self.__opponentName)
+            self.write_to_screen_buffer_xy(14, 43, self.__user_name)
+        else:
+            self.write_to_screen_buffer_xy(4, 43, self.__user_name)
+            self.write_to_screen_buffer_xy(14, 43, self.__opponentName)
         self.write_to_screen_buffer_xy(15, 43, "*_Col:0")
         self.write_to_screen_buffer_xy(16, 43, "*_Bar:0")
         for i in range(0, 19):

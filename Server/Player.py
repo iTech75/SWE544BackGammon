@@ -83,16 +83,19 @@ class Player(threading.Thread):
             import Player
             assert isinstance(opponent, Player.Player)
             self.__bgserver.create_game(self, opponent)
-            return "OPPONENT|" + opponent.playerName
+            color = "w"
+            if self.__activeGame.blackPlayer == self:
+                color = "b"
+            return "OPPONENT|%s|%s" % (opponent.playerName, color)
         else:
             # game queue is empty, wait for someone else to select you!
             while self.__activeGame is None:
                 time.sleep(3)
             if self.__activeGame is not None:
                 if self.__activeGame.whitePlayer != self:
-                    return "OPPONENT|" + self.__activeGame.whitePlayer.playerName
+                    return "OPPONENT|%s|%s" % (self.__activeGame.whitePlayer.playerName, "b")
                 else:
-                    return "OPPONENT|" + self.__activeGame.blackPlayer.playerName
+                    return "OPPONENT|%s|%s" % (self.__activeGame.blackPlayer.playerName, "w")
 
     def set_game(self, game):
         assert isinstance(game, BGGame.BGGame)
