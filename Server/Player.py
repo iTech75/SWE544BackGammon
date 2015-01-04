@@ -59,6 +59,8 @@ class Player(threading.Thread):
             return self.__connect(commands)
         elif commands[0] == "PLAY" and self.__activeGame is None:
             return self.__play(commands)
+        elif commands[0] == "WATCH" and self.__activeGame is None:
+            return self.__watch(commands)
         else:
             return "ERRORINCOMMAND"
 
@@ -96,6 +98,24 @@ class Player(threading.Thread):
                     return "OPPONENT|%s|%s" % (self.__activeGame.whitePlayer.playerName, "b")
                 else:
                     return "OPPONENT|%s|%s" % (self.__activeGame.blackPlayer.playerName, "w")
+
+    def __watch(self, commands):
+        assert isinstance(commands, list)
+        game = self.__bgserver.find_game()
+
+        if game is not None:
+            import BGGame
+            assert isinstance(game, BGGame.BGGame)
+            if len(game.spectators) < BGServer.BGServer.MAX_NUM_OF_SPECTATORS:
+                game.add_spectator(self)
+                # let's use this for watch also it's likely we will create another identifier for watch mode
+                self.__activeGame == game
+                return "ID|%s|%s|%s" % (game.gameId, game.blackPlayer.playerName, game.whitePlayer.playerName)
+            else:
+                return "BUSY"
+        else:
+            # No active gane
+            return "NOACTIVEMATCHUP"
 
     def set_game(self, game):
         assert isinstance(game, BGGame.BGGame)

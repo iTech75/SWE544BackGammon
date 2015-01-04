@@ -4,6 +4,7 @@ import threading
 import Queue
 import Player
 import BGGame
+import random
 
 
 class BGServer(threading.Thread):
@@ -17,7 +18,7 @@ class BGServer(threading.Thread):
         self.__serverSocket = socket.socket()
         self.__playerDictionary = {}
         self.__clientQueue = Queue.Queue(BGServer.MAX_NUM_OF_USERS)
-        self.__gameDictionary = {}
+        self.__gameList = []
 
     def run(self):
         self.__serverSocket.bind(("", 18475))
@@ -63,9 +64,20 @@ class BGServer(threading.Thread):
 
         return None
 
+    def find_game(self):
+        try:
+            count = len(self.__gameList)
+            if count > 0:
+                order = random.randint(0, count - 1)
+                return self.__gameList[order]
+            else:
+                return None
+        except IndexError:
+            return None
+
     def create_game(self, black, white):
         game = BGGame.BGGame(self, black, white)
-        self.__gameDictionary[game.gameId] = game
+        self.__gameList.append(game)
         game.start()
 
     def is_server_available(self):

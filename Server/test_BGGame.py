@@ -33,21 +33,6 @@ class TestBGGame(TestCase):
 
         self.assertEqual(status, "1/0|5w2|6b4|7b1|8b2|12w5|13b5|17w3|19w5|24b2|0/0", "status string is wrong!")
 
-    def test_parse_backgammon_notation_2(self):
-        game, black, white = self.create_test_game()
-
-        game.parse_backgammon_notation("8/5,6/5", black)
-        game.parse_backgammon_notation("24/21,24/22", white)
-        game.parse_backgammon_notation("8/4*,6/4", black)
-
-        self.assertEqual(game.gameStatus[0].color, "0/1", "white bar must be 1")
-        game.parse_backgammon_notation("bar/3,4/9", white)
-
-        self.assertEqual(game.gameStatus[3].count, 1, "point 3 count must be 1 white")
-        self.assertEqual(game.gameStatus[3].color, "w", "point 3 count must be 1 white")
-
-        game.parse_backgammon_notation("", black)  # pass test
-
     def test_parse_backgammon_notation_3(self):
         game, black, white = self.create_test_game()
 
@@ -55,3 +40,14 @@ class TestBGGame(TestCase):
 
         game.parse_backgammon_notation("1/off,1/off", black)
         self.assertEqual(game.gameStatus[25].color, "15/11", "black must win!")
+
+    def test_gameplay(self):
+        game, black, white = self.create_test_game()
+
+        game.parse_backgammon_notation("8/2,6/2", black)
+        game.parse_backgammon_notation("24/13", white)
+        game.parse_backgammon_notation("6/1*", black)
+        game.parse_backgammon_notation("bar/24*,24/22", white)
+
+        self.assertEqual(game.gameStatus[3].color, "w", "point 3 must be white")
+        self.assertEqual(game.gameStatus[3].count, 1, "point 3 must be 1 checker")

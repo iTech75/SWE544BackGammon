@@ -41,41 +41,10 @@ class BGGame(threading.Thread):
 
         self.gameStatus = [GamePoint(0, "", 0) for x in range(26)]
         self.__previous_gamestate = [""] * 26
+        self.spectators = []
 
     def initilize(self):
-        i = 0
-        for item in self.gameStatus:
-            item.pointId = i
-            item.color = ""
-            item.count = 0
-            i += 1
-
-        self.gameStatus[0].color = "0/0" # bar position for b/w
-        self.gameStatus[25].color = "0/0" # off position for b/w
-
-        self.gameStatus[1].color = "w"
-        self.gameStatus[1].count = 2
-
-        self.gameStatus[6].color = "b"
-        self.gameStatus[6].count = 5
-
-        self.gameStatus[8].color = "b"
-        self.gameStatus[8].count = 3
-
-        self.gameStatus[12].color = "w"
-        self.gameStatus[12].count = 5
-
-        self.gameStatus[13].color = "b"
-        self.gameStatus[13].count = 5
-
-        self.gameStatus[17].color = "w"
-        self.gameStatus[17].count = 3
-
-        self.gameStatus[19].color = "w"
-        self.gameStatus[19].count = 5
-
-        self.gameStatus[24].color = "b"
-        self.gameStatus[24].count = 2
+        self.set_game_status("0/0|1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2|0/0")
 
     def set_game_status(self, new_status):
         i = 0
@@ -131,6 +100,11 @@ class BGGame(threading.Thread):
             response = self.whitePlayer.send_message(message)
             if response != "OK":
                 raise Exception("Unexpected response: " + response)
+
+            for spec in self.spectators:
+                response = spec.send_message(message)
+                if response != "OK":
+                    raise Exception("Unexpected response: " + response)
 
             if roll == self.blackPlayer:
                 roll = self.whitePlayer
@@ -225,6 +199,9 @@ class BGGame(threading.Thread):
     def __set_bar_and_off_counts(self, black_bar, black_off, white_bar, white_off):
         self.gameStatus[0].color = "%d/%d" % (black_bar, white_bar)
         self.gameStatus[25].color = "%d/%d" % (black_off, white_off)
+
+    def add_spectator(self, player):
+        self.spectators.append(player)
 
     @staticmethod
     def get_new_id():

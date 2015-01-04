@@ -29,6 +29,8 @@ class BGClient(threading.Thread):
                 user_choice = self.__show_menu()
                 if user_choice == "1":
                     self.__start_game()
+                if user_choice == "2":
+                    self.__watch_game()
         else:
             print "Cannot connect to the server, reason: " + response
             self.__connection.close()
@@ -40,11 +42,33 @@ class BGClient(threading.Thread):
         if self.__parse_response(response, game_state)[0] == "OK":
             # game started, wait for server
             gaming = True
-            self.draw(game_state)
+
+            black_player = self.__user_name
+            white_player = self.__opponentName
+            if self.__color == "w":
+                black_player = self.__opponentName
+                white_player = self.__user_name
+
+            self.draw(game_state, black_player, white_player)
             while gaming:
                 request = self.__connection.recv(1024)
                 response, game_state = self.__parse_response(request, game_state)
-                self.draw(game_state)
+                self.draw(game_state, black_player, white_player)
+                self.__connection.send(response)
+
+    def __watch_game(self):
+        game_state = "0/0|1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2|0/0"
+        self.__connection.send("WATCH")
+        response = self.__connection.recv(1024)
+        if self.__parse_response(response, game_state)[0] == "OK":
+            # game started, wait for server
+            gaming = True
+            command, game_id, black, white = response.split("|")
+            self.draw(game_state, black, white)
+            while gaming:
+                request = self.__connection.recv(1024)
+                response, game_state = self.__parse_response(request, game_state)
+                self.draw(game_state, black, white)
                 self.__connection.send(response)
 
     def __parse_response(self, response, game_status):
@@ -59,8 +83,12 @@ class BGClient(threading.Thread):
             return self.make_move(data[1]), game_status
         elif data[0] == "SETSTATUS":
             return "OK", "|".join(data[1:])
+        elif data[0] == "ID":
+            return "OK", game_status
+        elif data[0] == "ERRORINCOMMAND":
+            return "ERRORINCOMMAND", game_status
         else:
-            pass
+            return "ERRORINCOMMAND", game_status
 
     @staticmethod
     def make_move(dice):
@@ -76,7 +104,7 @@ class BGClient(threading.Thread):
         print "-------------------------"
         return raw_input("Plaese make your choice (1,2,3) > ")
 
-    def draw(self, game_state):
+    def draw(self, game_state, black_player_name, white_player_name):
         """
         Draws game to the console screen, uses a screen buffer to accompalish the task
         :param game_state: state to be drawn on the screen
@@ -145,12 +173,8 @@ class BGClient(threading.Thread):
 
         self.write_to_screen_buffer_xy(2, 43, "O_Bar:%s" % white_bar)
         self.write_to_screen_buffer_xy(3, 43, "O_Col:%s" % white_off)
-        if self.__color == "b":
-            self.write_to_screen_buffer_xy(4, 43, self.__opponentName)
-            self.write_to_screen_buffer_xy(14, 43, self.__user_name)
-        else:
-            self.write_to_screen_buffer_xy(4, 43, self.__user_name)
-            self.write_to_screen_buffer_xy(14, 43, self.__opponentName)
+        self.write_to_screen_buffer_xy(4, 43, white_player_name)
+        self.write_to_screen_buffer_xy(14, 43, black_player_name)
         self.write_to_screen_buffer_xy(15, 43, "*_Col:%s" % black_off)
         self.write_to_screen_buffer_xy(16, 43, "*_Bar:%s" % black_bar)
         for i in range(0, 19):
