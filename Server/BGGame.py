@@ -3,6 +3,7 @@ import threading
 import BGServer
 import random
 import Player
+import string
 
 
 class GamePoint:
@@ -10,6 +11,14 @@ class GamePoint:
         self.pointId = point_id
         self.color = color
         self.count = count
+
+    def __str__(self):
+        if self.pointId == 0:
+            return "bar: %s" % self.color
+        elif self.pointId == 25:
+            return "off: %s" % self.color
+        else:
+            return "%d. %s(%d)" % (self.pointId, self.color, self.count)
 
 
 class BGGame(threading.Thread):
@@ -30,49 +39,80 @@ class BGGame(threading.Thread):
         self.blackPlayer.set_game(self)
         self.whitePlayer.set_game(self)
 
-        self.__gameStatus = [GamePoint(0, "", 0) for x in range(27)]
+        self.gameStatus = [GamePoint(0, "", 0) for x in range(26)]
         self.__previous_gamestate = [""] * 26
 
-    def __initilize(self):
+    def initilize(self):
         i = 0
-        for item in self.__gameStatus:
+        for item in self.gameStatus:
             item.pointId = i
             item.color = ""
             item.count = 0
+            i += 1
 
-        self.__gameStatus[1].color = "w"
-        self.__gameStatus[1].count = 2
+        self.gameStatus[0].color = "0/0" # bar position for b/w
+        self.gameStatus[25].color = "0/0" # off position for b/w
 
-        self.__gameStatus[6].color = "b"
-        self.__gameStatus[6].count = 5
+        self.gameStatus[1].color = "w"
+        self.gameStatus[1].count = 2
 
-        self.__gameStatus[8].color = "b"
-        self.__gameStatus[8].count = 3
+        self.gameStatus[6].color = "b"
+        self.gameStatus[6].count = 5
 
-        self.__gameStatus[12].color = "w"
-        self.__gameStatus[12].count = 5
+        self.gameStatus[8].color = "b"
+        self.gameStatus[8].count = 3
 
-        self.__gameStatus[13].color = "b"
-        self.__gameStatus[13].count = 5
+        self.gameStatus[12].color = "w"
+        self.gameStatus[12].count = 5
 
-        self.__gameStatus[17].color = "w"
-        self.__gameStatus[17].count = 3
+        self.gameStatus[13].color = "b"
+        self.gameStatus[13].count = 5
 
-        self.__gameStatus[19].color = "w"
-        self.__gameStatus[19].count = 5
+        self.gameStatus[17].color = "w"
+        self.gameStatus[17].count = 3
 
-        self.__gameStatus[24].color = "b"
-        self.__gameStatus[24].count = 2
+        self.gameStatus[19].color = "w"
+        self.gameStatus[19].count = 5
 
-    def __create_game_status_string(self):
+        self.gameStatus[24].color = "b"
+        self.gameStatus[24].count = 2
+
+    def set_game_status(self, new_status):
+        i = 0
+        for item in self.gameStatus:
+            item.pointId = i
+            item.color = ""
+            item.count = 0
+            i += 1
+
+        points = new_status.split('|')
+
+        black_bar, white_bar = points[0].split('/')
+        self.gameStatus[0].color = "%s/%s" % (black_bar, white_bar)
+        points.remove(points[0])
+
+        black_off, white_off = points[len(points) - 1].split('/')
+        self.gameStatus[25].color = "%s/%s" % (black_off, white_off)
+        points.remove(points[len(points) - 1])
+
+        for point in points:
+            color = 'w'
+            if point.find('b') > -1:
+                color = 'b'
+            point_id, count = point.split(color)
+            point_id = int(point_id)
+            self.gameStatus[point_id].color = color
+            self.gameStatus[point_id].count = int(count)
+
+    def create_game_status_string(self):
         result = ""
         for i in range(1, 25):
-            if self.__gameStatus[i].color != "":
-                result += "|%d%s%d" % (i, self.__gameStatus[i].color, self.__gameStatus[i].count)
-        return result
+            if self.gameStatus[i].color != "":
+                result += "|%d%s%d" % (i, self.gameStatus[i].color, self.gameStatus[i].count)
+        return "|%s%s|%s" % (self.gameStatus[0].color, result, self.gameStatus[25].color)
 
     def run(self):
-        self.__initilize()
+        self.initilize()
         running = True
         roll = self.blackPlayer
         while running:
@@ -83,7 +123,7 @@ class BGGame(threading.Thread):
             response = roll.send_message(message)
             self.__parse_response(response, roll)
 
-            message = "SETSTATUS" + self.__create_game_status_string()
+            message = "SETSTATUS" + self.create_game_status_string()
             response = self.blackPlayer.send_message(message)
             if response != "OK":
                 raise Exception("Unexpected response: " + response)
@@ -100,28 +140,91 @@ class BGGame(threading.Thread):
     def __parse_response(self, response, roll):
         data = response.split("|")
         if data[0] == "MOVE":
-            self.__parse_backgammon_notation(data[1], roll)
+            self.parse_backgammon_notation(data[1], roll)
 
-    def __parse_backgammon_notation(self, move, roll):
-        data = move.split(",")
-        for item in data:
-            source_target = item.split("/")
-            if len(source_target) == 2:
-                if roll == self.whitePlayer:
-                    source_target[0] = 25 - int(source_target[0])
-                    source_target[1] = 25 - int(source_target[1])
+    def parse_backgammon_notation(self, move, roll):
+        """
+        Parses client move data and updates board status...
 
-                self.__gameStatus[int(source_target[0])].count -= 1
-                if self.__gameStatus[int(source_target[0])].count <= 0:
-                    self.__gameStatus[int(source_target[0])].count = 0
-                    self.__gameStatus[int(source_target[0])].color = ""
+        :param move: move information sent by the client such as 8/7,6/4
+        :param roll: black or white Player, a Player object
+        :return: None
+        """
+        if move == "":
+            # player had no move, give the roll to the opponent
+            return
+        black_bar, black_off, white_bar, white_off = self.__get_bar_and_off_counts()
+        for item in move.split(","):
+            # check from blot hit info in the move
+            blot_hit = False
+            if item[-1] == "*":
+                blot_hit = True
+                item = item[0:-1]
+                if roll == self.blackPlayer:
+                    white_bar += 1
+                else:
+                    black_bar += 1
 
-                self.__gameStatus[int(source_target[1])].count += 1
-                if self.__gameStatus[int(source_target[1])].count > 0:
+            source, target = item.split("/")
+            source_from_bar = False
+            if source == "bar":
+                # checker from bar control
+                source_from_bar = True
+                source = 0
+
+            target_to_off = False
+            if target == "off":
+                # checker to off position
+                target_to_off = True
+                target = 25
+
+            source = int(source)
+            target = int(target)
+            if roll == self.whitePlayer:
+                source = 25 - source
+                target = 25 - target
+
+            if blot_hit:
+                # Let's make a blot hit first!
+                self.gameStatus[target].count = 0
+                self.gameStatus[target].color = ""
+
+            if source_from_bar:
+                if roll == self.blackPlayer:
+                    black_bar -= 1
+                else:
+                    white_bar -= 1
+            else:
+                # decrease source point by 1
+                self.gameStatus[source].count -= 1
+                if self.gameStatus[source].count <= 0:
+                    self.gameStatus[source].count = 0
+                    self.gameStatus[source].color = ""
+
+            if target_to_off:
+                if roll == self.blackPlayer:
+                    black_off += 1
+                else:
+                    white_bar += 1
+            else:
+                # increase target point by 1
+                self.gameStatus[target].count += 1
+                if self.gameStatus[target].count > 0:
                     if roll == self.blackPlayer:
-                        self.__gameStatus[int(source_target[1])].color = "b"
+                        self.gameStatus[target].color = "b"
                     else:
-                        self.__gameStatus[int(source_target[1])].color = "w"
+                        self.gameStatus[target].color = "w"
+
+        self.__set_bar_and_off_counts(black_bar, black_off, white_bar, white_off)
+
+    def __get_bar_and_off_counts(self):
+        black_bar, white_bar = self.gameStatus[0].color.split("/")
+        black_off, white_off = self.gameStatus[25].color.split("/")
+        return int(black_bar), int(black_off), int(white_bar), int(white_off)
+
+    def __set_bar_and_off_counts(self, black_bar, black_off, white_bar, white_off):
+        self.gameStatus[0].color = "%d/%d" % (black_bar, white_bar)
+        self.gameStatus[25].color = "%d/%d" % (black_off, white_off)
 
     @staticmethod
     def get_new_id():

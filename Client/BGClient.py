@@ -34,7 +34,7 @@ class BGClient(threading.Thread):
             self.__connection.close()
 
     def __start_game(self):
-        game_state = "1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2"
+        game_state = "0/0|1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2|0/0"
         self.__connection.send("PLAY")
         response = self.__connection.recv(1024)
         if self.__parse_response(response, game_state)[0] == "OK":
@@ -85,6 +85,10 @@ class BGClient(threading.Thread):
         print "544 BG Client"
         print "-------------"
         _buffer = game_state.split('|')
+        black_bar, white_bar = _buffer[0].split("/")
+        black_off, white_off = _buffer[len(_buffer) - 1].split("/")
+        _buffer.remove(_buffer[0])
+        _buffer.remove(_buffer[len(_buffer) - 1])
 
         for i in range(1, 25):
             self.__gameStatus[i] = ""
@@ -139,16 +143,16 @@ class BGClient(threading.Thread):
                             column += 3
                         self.__screenBuffer[row][column] = checker_color
 
-        self.write_to_screen_buffer_xy(2, 43, "O_Bar:0")
-        self.write_to_screen_buffer_xy(3, 43, "O_Col:0")
+        self.write_to_screen_buffer_xy(2, 43, "O_Bar:%s" % white_bar)
+        self.write_to_screen_buffer_xy(3, 43, "O_Col:%s" % white_off)
         if self.__color == "b":
             self.write_to_screen_buffer_xy(4, 43, self.__opponentName)
             self.write_to_screen_buffer_xy(14, 43, self.__user_name)
         else:
             self.write_to_screen_buffer_xy(4, 43, self.__user_name)
             self.write_to_screen_buffer_xy(14, 43, self.__opponentName)
-        self.write_to_screen_buffer_xy(15, 43, "*_Col:0")
-        self.write_to_screen_buffer_xy(16, 43, "*_Bar:0")
+        self.write_to_screen_buffer_xy(15, 43, "*_Col:%s" % black_off)
+        self.write_to_screen_buffer_xy(16, 43, "*_Bar:%s" % black_bar)
         for i in range(0, 19):
             print "".join(self.__screenBuffer[i])
 
