@@ -3,6 +3,7 @@
     <words>
       <w>aytekin</w>
       <w>bgserver</w>
+      <w>congratz</w>
       <w>errorincommand</w>
       <w>gamestate</w>
       <w>noactivematchup</w>
@@ -10,7 +11,9 @@
       <w>noopponent</w>
       <w>redice</w>
       <w>userexists</w>
+      <w>youlose</w>
       <w>yourturn</w>
+      <w>youwin</w>
     </words>
   </dictionary>
 </component>

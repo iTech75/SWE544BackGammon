@@ -80,6 +80,9 @@ class BGServer(threading.Thread):
         self.__gameList.append(game)
         game.start()
 
+    def remove_game(self, game):
+        self.__gameList.remove(game)
+
     def is_server_available(self):
         return self.__playerDictionary.__len__() < BGServer.MAX_NUM_OF_USERS
 

@@ -140,7 +140,8 @@ class Player(threading.Thread):
         return "ERRORINCOMMAND"
 
     def set_game(self, game):
-        assert isinstance(game, BGGame.BGGame)
+        if game is not None:
+            assert isinstance(game, BGGame.BGGame)
         if self.__activeGame is None:
             self.__activeGame = game
         else:

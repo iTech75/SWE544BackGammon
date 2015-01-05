@@ -100,26 +100,28 @@ class BGGame(threading.Thread):
             try:
                 message = "YOURTURN|%d-%d" % (dice1, dice2)
                 response = roll.send_message(message)
-                self.__parse_response(response, roll)
-
-                message = "SETSTATUS" + self.create_game_status_string()
-                response = self.blackPlayer.send_message(message)
-                if response != "OK":
-                    raise Exception("Unexpected response: " + response)
-
-                response = self.whitePlayer.send_message(message)
-                if response != "OK":
-                    raise Exception("Unexpected response: " + response)
-
-                for spec in self.spectators:
-                    response = spec.send_message(message)
+                parse_result = self.__parse_response(response, roll)
+                if parse_result == "DONE":
+                    running = False
+                else:
+                    message = "SETSTATUS" + self.create_game_status_string()
+                    response = self.blackPlayer.send_message(message)
                     if response != "OK":
                         raise Exception("Unexpected response: " + response)
 
-                if roll == self.blackPlayer:
-                    roll = self.whitePlayer
-                else:
-                    roll = self.blackPlayer
+                    response = self.whitePlayer.send_message(message)
+                    if response != "OK":
+                        raise Exception("Unexpected response: " + response)
+
+                    for spec in self.spectators:
+                        response = spec.send_message(message)
+                        if response != "OK":
+                            raise Exception("Unexpected response: " + response)
+
+                    if roll == self.blackPlayer:
+                        roll = self.whitePlayer
+                    else:
+                        roll = self.blackPlayer
             except ValueError:
                 print "Error in the message"
                 # rewind state to the beginning of the roll and try again
@@ -127,15 +129,60 @@ class BGGame(threading.Thread):
                 roll = roll_backup
                 self.__previous_gamestate = previous_state_backup
                 redice = False
+        self.__finalize_game()
+
+    def __finalize_game(self):
+        self.__bgserver.remove_game(self)
+        self.blackPlayer.set_game(None)
+        self.whitePlayer.set_game(None)
+        for spec in self.spectators:
+            spec.set_game(None)
 
     def __parse_response(self, response, roll):
         data = response.split("|")
         if data[0] == "MOVE":
             # first backup previous state
             self.__previous_gamestate = self.create_game_status_string()[1:]
-            self.parse_backgammon_notation(data[1], roll)
+            black_off, white_off = self.parse_backgammon_notation(data[1], roll)
+            if self.__do_we_have_a_winner(black_off, white_off):
+                return "DONE"
+            else:
+                return None
         elif data[0] == "WRONG_MOVE":
             self.__execute_wrong_move_alert()
+            return None
+        elif data[0] == "WITHDRAW":
+            self.__withdraw(roll)
+            return "DONE"
+
+    def __do_we_have_a_winner(self, black_off, white_off):
+        if black_off >= 15:
+            self.__endgame(self.blackPlayer, self.whitePlayer)
+            return True
+        elif white_off >= 15:
+            self.__endgame(self.whitePlayer, self.blackPlayer)
+            return True
+        else:
+            return False
+
+    def __withdraw(self, roll):
+        winner = self.blackPlayer
+        loser = self.whitePlayer
+
+        if roll == self.blackPlayer:
+            winner = self.whitePlayer
+            loser = self.blackPlayer
+        self.__endgame(winner, loser)
+
+    def __endgame(self, winner, loser):
+        assert isinstance(winner, Player.Player)
+        assert isinstance(loser, Player.Player)
+
+        status = self.create_game_status_string()
+        winner.send_message("YOUWIN%s" % status)
+        loser.send_message("YOULOSE%s" % status)
+        for spec in self.spectators:
+            spec.send_message("WINNER|%s%s" % (winner.playerName, status))
 
     def __execute_wrong_move_alert(self):
         self.set_game_status(self.__previous_gamestate)
@@ -150,7 +197,7 @@ class BGGame(threading.Thread):
         """
         if move == "":
             # player had no move, give the roll to the opponent
-            return
+            return 0, 0
         black_bar, black_off, white_bar, white_off = self.__get_bar_and_off_counts()
         for item in move.split(","):
             # check from blot hit info in the move
@@ -214,6 +261,7 @@ class BGGame(threading.Thread):
                         self.gameStatus[target].color = "w"
 
         self.__set_bar_and_off_counts(black_bar, black_off, white_bar, white_off)
+        return black_off, white_off
 
     def __get_bar_and_off_counts(self):
         black_bar, white_bar = self.gameStatus[0].color.split("/")
