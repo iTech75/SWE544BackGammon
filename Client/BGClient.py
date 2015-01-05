@@ -54,7 +54,48 @@ class BGClient(threading.Thread):
                 request = self.__connection.recv(1024)
                 response, game_state = self.__parse_response(request, game_state)
                 self.draw(game_state, black_player, white_player)
-                self.__connection.send(response)
+                if not (self.end_game_control(response)):
+                    self.__connection.send(response)
+                else:
+                    self.__connection.send("OK")  # to make server go on
+                    gaming = False
+
+            print ""
+            raw_input("Press enter to continue")
+
+        elif self.__parse_response(response, game_state)[0] == "NOOPPONENT":
+            print "Exceeded time to find an opponent, server is deserted at the moment!"
+        else:
+            print "Unknown response from the server: %s" % self.__parse_response(response, game_state)[0]
+
+    @staticmethod
+    def end_game_control(response):
+        if response.startswith("YOUWIN"):
+            print "************************************"
+            print "************************************"
+            print "W I N N W E R"
+            print "************************************"
+            print "Congratz"
+            print "************************************"
+            return True
+        elif response.startswith( "YOULOSE"):
+            print "************************************"
+            print "************************************"
+            print "L O S E R"
+            print "************************************"
+            print "Next time"
+            print "************************************"
+            return True
+        elif response.startswith("WINNER"):
+            commands = response.split("|")
+            print "************************************"
+            print "************************************"
+            print "%s WINS the game..." % commands[1]
+            print "************************************"
+            print "************************************"
+            return True
+        else:
+            return False
 
     def __watch_game(self):
         game_state = "0/0|1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2|0/0"
@@ -64,12 +105,21 @@ class BGClient(threading.Thread):
             # game started, wait for server
             gaming = True
             command, game_id, black, white = response.split("|")
+            self.__connection.send("GETSTATUS|%s" % game_id)
+            response = self.__connection.recv(1024)
+            response, game_state = self.__parse_response(response, game_state)
             self.draw(game_state, black, white)
             while gaming:
                 request = self.__connection.recv(1024)
                 response, game_state = self.__parse_response(request, game_state)
                 self.draw(game_state, black, white)
-                self.__connection.send(response)
+                if not (self.end_game_control(response)):
+                    self.__connection.send(response)
+                else:
+                    self.__connection.send("OK")  # to make server go on
+                    gaming = False
+            print ""
+            raw_input("Press enter to continue")
 
     def __parse_response(self, response, game_status):
         data = response.split("|")
@@ -78,13 +128,21 @@ class BGClient(threading.Thread):
             self.__color = data[2]
             return "OK", game_status
         elif data[0] == "NOOPPONENT":
-            pass
+            return "NOOPPONENT", game_status
         elif data[0] == "YOURTURN":
             return self.make_move(data[1]), game_status
         elif data[0] == "SETSTATUS":
             return "OK", "|".join(data[1:])
         elif data[0] == "ID":
             return "OK", game_status
+        elif data[0] == "STATUS":
+            return "OK", "|".join(data[1:])
+        elif data[0] == "YOUWIN":
+            return "YOUWIN", "|".join(data[1:])
+        elif data[0] == "YOULOSE":
+            return "YOULOSE", "|".join(data[1:])
+        elif data[0] == "WINNER":
+            return response, "|".join(data[2:])
         elif data[0] == "ERRORINCOMMAND":
             return "ERRORINCOMMAND", game_status
         else:
@@ -93,7 +151,12 @@ class BGClient(threading.Thread):
     @staticmethod
     def make_move(dice):
         move = raw_input("Please make your move, dice is %s:" % dice)
-        return "MOVE|%s" % move
+        if move == "W" or move == "WRONG" or move == "WRONG_MOVE":
+            return "WRONG_MOVE"
+        elif move == "WITHDRAW" or move == "-":
+            return "WITHDRAW"
+        else:
+            return "MOVE|%s" % move
 
     @staticmethod
     def __show_menu():
@@ -102,7 +165,7 @@ class BGClient(threading.Thread):
         print "2. WATCH a game"
         print "3. DISCONNECT from server"
         print "-------------------------"
-        return raw_input("Plaese make your choice (1,2,3) > ")
+        return raw_input("Please make your choice (1,2,3) > ")
 
     def draw(self, game_state, black_player_name, white_player_name):
         """
