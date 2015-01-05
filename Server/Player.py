@@ -61,6 +61,8 @@ class Player(threading.Thread):
             return self.__play(commands)
         elif commands[0] == "WATCH" and self.__activeGame is None:
             return self.__watch(commands)
+        elif commands[0] == "GETSTATUS" and self.__activeGame is not None:
+            return "STATUS%s" % self.__activeGame.create_game_status_string()
         else:
             return "ERRORINCOMMAND"
 
@@ -109,12 +111,16 @@ class Player(threading.Thread):
             if len(game.spectators) < BGServer.BGServer.MAX_NUM_OF_SPECTATORS:
                 game.add_spectator(self)
                 # let's use this for watch also it's likely we will create another identifier for watch mode
-                self.__activeGame == game
-                return "ID|%s|%s|%s" % (game.gameId, game.blackPlayer.playerName, game.whitePlayer.playerName)
+                self.__activeGame = game
+                self.__clientSocket.send("ID|%s|%s|%s" % (game.gameId, game.blackPlayer.playerName,
+                                                          game.whitePlayer.playerName))
+                request = self.__clientSocket.recv(1024)
+                response = self.__parse_request(request)
+                return response
             else:
                 return "BUSY"
         else:
-            # No active gane
+            # No active game
             return "NOACTIVEMATCHUP"
 
     def set_game(self, game):

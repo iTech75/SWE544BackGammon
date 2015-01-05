@@ -2,6 +2,12 @@
   <dictionary name="Tekin.Aytekin">
     <words>
       <w>aytekin</w>
+      <w>bgserver</w>
+      <w>errorincommand</w>
+      <w>noactivematchup</w>
+      <w>noopponent</w>
+      <w>userexists</w>
+      <w>yourturn</w>
     </words>
   </dictionary>
 </component>
