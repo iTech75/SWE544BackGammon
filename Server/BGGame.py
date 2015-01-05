@@ -40,10 +40,10 @@ class BGGame(threading.Thread):
         self.whitePlayer.set_game(self)
 
         self.gameStatus = [GamePoint(0, "", 0) for x in range(26)]
-        self.__previous_gamestate = [""] * 26
+        self.__previous_gamestate = ""
         self.spectators = []
 
-    def initilize(self):
+    def initialize(self):
         self.set_game_status("0/0|1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2|0/0")
 
     def set_game_status(self, new_status):
@@ -81,40 +81,64 @@ class BGGame(threading.Thread):
         return "|%s%s|%s" % (self.gameStatus[0].color, result, self.gameStatus[25].color)
 
     def run(self):
-        self.initilize()
+        self.initialize()
         running = True
         roll = self.blackPlayer
+        redice = True
+        dice1 = 1
+        dice2 = 1
         while running:
-            dice1 = random.randint(1, 6)
-            dice2 = random.randint(1, 6)
+            state_backup = self.create_game_status_string()[1:]
+            roll_backup = roll
+            previous_state_backup = self.__previous_gamestate
 
-            message = "YOURTURN|%d-%d" % (dice1, dice2)
-            response = roll.send_message(message)
-            self.__parse_response(response, roll)
+            if redice:
+                dice1 = random.randint(1, 6)
+                dice2 = random.randint(1, 6)
 
-            message = "SETSTATUS" + self.create_game_status_string()
-            response = self.blackPlayer.send_message(message)
-            if response != "OK":
-                raise Exception("Unexpected response: " + response)
+            redice = True  # keep rethrowing until an error
+            try:
+                message = "YOURTURN|%d-%d" % (dice1, dice2)
+                response = roll.send_message(message)
+                self.__parse_response(response, roll)
 
-            response = self.whitePlayer.send_message(message)
-            if response != "OK":
-                raise Exception("Unexpected response: " + response)
-
-            for spec in self.spectators:
-                response = spec.send_message(message)
+                message = "SETSTATUS" + self.create_game_status_string()
+                response = self.blackPlayer.send_message(message)
                 if response != "OK":
                     raise Exception("Unexpected response: " + response)
 
-            if roll == self.blackPlayer:
-                roll = self.whitePlayer
-            else:
-                roll = self.blackPlayer
+                response = self.whitePlayer.send_message(message)
+                if response != "OK":
+                    raise Exception("Unexpected response: " + response)
+
+                for spec in self.spectators:
+                    response = spec.send_message(message)
+                    if response != "OK":
+                        raise Exception("Unexpected response: " + response)
+
+                if roll == self.blackPlayer:
+                    roll = self.whitePlayer
+                else:
+                    roll = self.blackPlayer
+            except ValueError:
+                print "Error in the message"
+                # rewind state to the beginning of the roll and try again
+                self.set_game_status(state_backup)
+                roll = roll_backup
+                self.__previous_gamestate = previous_state_backup
+                redice = False
 
     def __parse_response(self, response, roll):
         data = response.split("|")
         if data[0] == "MOVE":
+            # first backup previous state
+            self.__previous_gamestate = self.create_game_status_string()[1:]
             self.parse_backgammon_notation(data[1], roll)
+        elif data[0] == "WRONG_MOVE":
+            self.__execute_wrong_move_alert()
+
+    def __execute_wrong_move_alert(self):
+        self.set_game_status(self.__previous_gamestate)
 
     def parse_backgammon_notation(self, move, roll):
         """

@@ -4,8 +4,11 @@
       <w>aytekin</w>
       <w>bgserver</w>
       <w>errorincommand</w>
+      <w>gamestate</w>
       <w>noactivematchup</w>
+      <w>nogame</w>
       <w>noopponent</w>
+      <w>redice</w>
       <w>userexists</w>
       <w>yourturn</w>
     </words>

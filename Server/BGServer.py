@@ -8,7 +8,7 @@ import random
 
 
 class BGServer(threading.Thread):
-    TIMEOUT_TO_FIND_OPPONENT = 10
+    TIMEOUT_TO_FIND_OPPONENT = 20
     MAX_NUM_OF_USERS = 10
     MAX_NUM_OF_SPECTATORS = 10
     HEARTBEAT_INTERVAL = 30

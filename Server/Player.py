@@ -62,7 +62,7 @@ class Player(threading.Thread):
         elif commands[0] == "WATCH" and self.__activeGame is None:
             return self.__watch(commands)
         elif commands[0] == "GETSTATUS" and self.__activeGame is not None:
-            return "STATUS%s" % self.__activeGame.create_game_status_string()
+            return self.__get_status(commands)
         else:
             return "ERRORINCOMMAND"
 
@@ -93,8 +93,15 @@ class Player(threading.Thread):
             return "OPPONENT|%s|%s" % (opponent.playerName, color)
         else:
             # game queue is empty, wait for someone else to select you!
-            while self.__activeGame is None:
+            start_time = time.time()
+            elapsed_time = time.time()-start_time
+            while self.__activeGame is None and elapsed_time < BGServer.BGServer.TIMEOUT_TO_FIND_OPPONENT:
                 time.sleep(3)
+                elapsed_time = time.time()-start_time
+
+            if elapsed_time >= BGServer.BGServer.TIMEOUT_TO_FIND_OPPONENT:
+                return "NOOPPONENT"
+
             if self.__activeGame is not None:
                 if self.__activeGame.whitePlayer != self:
                     return "OPPONENT|%s|%s" % (self.__activeGame.whitePlayer.playerName, "b")
@@ -122,6 +129,15 @@ class Player(threading.Thread):
         else:
             # No active game
             return "NOACTIVEMATCHUP"
+
+    def __get_status(self, commands):
+        assert isinstance(commands, list)
+        if len(commands) == 2:
+            if self.__activeGame is not None:
+                return "STATUS%s" % self.__activeGame.create_game_status_string()
+            else:
+                return "NOGAME"
+        return "ERRORINCOMMAND"
 
     def set_game(self, game):
         assert isinstance(game, BGGame.BGGame)

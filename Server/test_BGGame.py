@@ -13,7 +13,7 @@ class TestBGGame(TestCase):
         black = Player.Player(bgserver, socket.socket(), ())
         white = Player.Player(bgserver, socket.socket(), ())
         game = BGGame.BGGame(bgserver, black, white)
-        game.initilize()
+        game.initialize()
         return game, black, white
 
     def test_parse_backgammon_notation(self):
