@@ -44,7 +44,7 @@ class Player(threading.Thread):
                 running = False
 
         self.__clientSocket.close()
-        self.__bgserver.remove_player(self.__clientAddress)
+        self.__bgserver.remove_player(self.__clientAddress, self.playerName)
         print self.playerName + " is disconnected..."
 
     def __parse_request(self, request):
