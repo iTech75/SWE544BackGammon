@@ -6,6 +6,7 @@ import Player
 import BGGame
 import random
 import Logger
+import BGHeartbeat
 
 
 class BGServer(threading.Thread):
@@ -23,8 +24,10 @@ class BGServer(threading.Thread):
 
         assert isinstance(logger, Logger.Logger)
         self.__logger = logger
+        self.__heartbeat = BGHeartbeat.BGHeartbeat(self)
 
     def run(self):
+        self.__heartbeat.start()
         self.__serverSocket.bind(("", 18475))
         self.__serverSocket.listen(5)
         running = True
@@ -42,9 +45,12 @@ class BGServer(threading.Thread):
         self.__playerDictionary[client_address] = new_player
         self.log_message("Player added to the dictionary, %s" % new_player.playerName)
 
-    def remove_player(self, client_address, player_name):
-        self.__playerDictionary.pop(client_address, None)
-        self.log_message("Player removed from dictionary, %s" % player_name)
+    def remove_player(self, client_address):
+        player = self.__playerDictionary.pop(client_address, None)
+        if player:
+            assert isinstance(player, Player.Player)
+            player.isConnected = False
+            self.log_message("Player removed from dictionary, %s" % player.playerName)
 
     def is_user_exists(self, user_name):
         for user in self.__playerDictionary.values():
@@ -105,6 +111,15 @@ class BGServer(threading.Thread):
     def log_message(self, message):
         self.__logger.log_message(message)
 
+    def notify_game_server_on_disconnected_client(self):
+        for name in self.__heartbeat.disconnectedClients:
+            for player in self.__playerDictionary.values():
+                if player.playerName == name:
+                    self.remove_player(player.clientAddress)
+                    game = player.get_game()
+                    if game is not None:
+                        assert isinstance(game, BGGame.BGGame)
+                        game.player_left(player)
 
 # Main Module --------------------------------------------------------------------
 def main():

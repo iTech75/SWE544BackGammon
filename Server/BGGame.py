@@ -3,7 +3,6 @@ import threading
 import BGServer
 import random
 import Player
-import string
 
 
 class GamePoint:
@@ -42,6 +41,7 @@ class BGGame(threading.Thread):
         self.gameStatus = [GamePoint(0, "", 0) for x in range(26)]
         self.__previous_gamestate = ""
         self.spectators = []
+        self.__disconnectedPlayer = None
 
     def initialize(self):
         self.set_game_status("0/0|1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2|0/0")
@@ -88,6 +88,13 @@ class BGGame(threading.Thread):
         dice1 = 1
         dice2 = 1
         while running:
+            if self.__disconnectedPlayer is not None:
+                running = False
+                loser = self.__disconnectedPlayer
+                winner = self.blackPlayer if loser == self.whitePlayer else self.whitePlayer
+                self.__endgame(winner, loser)
+                continue
+
             state_backup = self.create_game_status_string()[1:]
             roll_backup = roll
             previous_state_backup = self.__previous_gamestate
@@ -106,16 +113,22 @@ class BGGame(threading.Thread):
                 else:
                     message = "SETSTATUS" + self.create_game_status_string()
                     response = self.blackPlayer.send_message(message)
+                    if response == "NOTCONNECTED":
+                        continue
                     if response != "OK":
                         raise Exception("Unexpected response: " + response)
 
                     response = self.whitePlayer.send_message(message)
+                    if response == "NOTCONNECTED":
+                        continue
                     if response != "OK":
                         raise Exception("Unexpected response: " + response)
 
                     for spec in self.spectators:
                         response = spec.send_message(message)
-                        if response != "OK":
+                        if response == "NOTCONNECTED":
+                            continue
+                        elif response != "OK":
                             raise Exception("Unexpected response: " + response)
 
                     if roll == self.blackPlayer:
@@ -274,6 +287,9 @@ class BGGame(threading.Thread):
 
     def add_spectator(self, player):
         self.spectators.append(player)
+
+    def player_left(self, player):
+        self.__disconnectedPlayer = player
 
     @staticmethod
     def get_new_id():

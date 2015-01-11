@@ -16,7 +16,7 @@ class Player(threading.Thread):
 
         self.__bgserver = bgserver
         self.__clientSocket = client_socket
-        self.__clientAddress = client_address
+        self.clientAddress = client_address
         self.isConnected = False
         self.playerName = "name"
         self.__activeGame = None
@@ -44,7 +44,7 @@ class Player(threading.Thread):
                 running = False
 
         self.__clientSocket.close()
-        self.__bgserver.remove_player(self.__clientAddress, self.playerName)
+        self.__bgserver.remove_player(self.clientAddress)
         print self.playerName + " is disconnected..."
 
     def __parse_request(self, request):
@@ -150,7 +150,13 @@ class Player(threading.Thread):
             else:
                 raise Exception("There is already an active game this player is involved!")
 
+    def get_game(self):
+        return self.__activeGame
+
     def send_message(self, message):
-        self.__clientSocket.send(message)
-        response = self.__clientSocket.recv(1024)
-        return response
+        if self.isConnected:
+            self.__clientSocket.send(message)
+            response = self.__clientSocket.recv(1024)
+            return response
+        else:
+            return "NOTCONNECTED"

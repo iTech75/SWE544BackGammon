@@ -2,7 +2,8 @@ __author__ = 'Tekin.Aytekin'
 import threading
 import socket
 import string
-import colorama
+# import colorama
+import ClientHeartbeat
 
 
 class BGClient(threading.Thread):
@@ -15,15 +16,18 @@ class BGClient(threading.Thread):
         self.__gameStatus[25] = "0"
         self.__screenBuffer = [["" for x in range(60)] for xx in range(19)]
         self.__opponentName = "None"
-        self.__user_name = "None"
+        self.user_name = "None"
         self.__color = ""
+        self.__clientHeartbeat = ClientHeartbeat.ClientHeartbeat()
 
     def run(self):
-        self.__user_name = raw_input("Please enter your username > ")
+        self.user_name = raw_input("Please enter your username > ")
         self.__connection.connect(("localhost", 18475))
-        self.__connection.send("CONNECT|" + self.__user_name)
+        self.__connection.send("CONNECT|" + self.user_name)
         response = self.__connection.recv(1024)
         if response == "OK":
+            self.__clientHeartbeat.set_username(self.user_name)
+            self.__clientHeartbeat.start()
             running = True
             while running:
                 user_choice = self.__show_menu()
@@ -43,11 +47,11 @@ class BGClient(threading.Thread):
             # game started, wait for server
             gaming = True
 
-            black_player = self.__user_name
+            black_player = self.user_name
             white_player = self.__opponentName
             if self.__color == "w":
                 black_player = self.__opponentName
-                white_player = self.__user_name
+                white_player = self.user_name
 
             self.draw(game_state, black_player, white_player)
             while gaming:
@@ -254,7 +258,7 @@ class BGClient(threading.Thread):
 
 # Main Module --------------------------------------------------------------------
 def main():
-    colorama.init()
+    # colorama.init()
     client = BGClient()
     client.start()
 
