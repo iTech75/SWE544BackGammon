@@ -20,6 +20,10 @@ class BGClient(threading.Thread):
         self.__color = ""
         self.__clientHeartbeat = ClientHeartbeat.ClientHeartbeat()
 
+    def __del__(self):
+        self.__clientHeartbeat.stop()
+        self.__connection.close()
+
     def run(self):
         self.user_name = raw_input("Please enter your username > ")
         self.__connection.connect(("localhost", 18475))
@@ -30,14 +34,22 @@ class BGClient(threading.Thread):
             self.__clientHeartbeat.start()
             running = True
             while running:
-                user_choice = self.__show_menu()
-                if user_choice == "1":
-                    self.__start_game()
-                if user_choice == "2":
-                    self.__watch_game()
+                try:
+                    user_choice = self.__show_menu()
+                    if user_choice == "1":
+                        self.__start_game()
+                    elif user_choice == "2":
+                        self.__watch_game()
+                    else:
+                        running = False
+                except socket.error as e:
+                    running = False
+                    print "Socket error :%s, %s" % (e.message, str(e.errno))
         else:
             print "Cannot connect to the server, reason: " + response
-            self.__connection.close()
+        print "Good Bye!"
+        self.__connection.close()
+        self.__clientHeartbeat.stop()
 
     def __start_game(self):
         game_state = "0/0|1w2|6b5|8b3|12w5|13b5|17w3|19w5|24b2|0/0"
@@ -79,10 +91,10 @@ class BGClient(threading.Thread):
             print "************************************"
             print "W I N N W E R"
             print "************************************"
-            print "Congratz"
+            print "Congratulations"
             print "************************************"
             return True
-        elif response.startswith( "YOULOSE"):
+        elif response.startswith("YOULOSE"):
             print "************************************"
             print "************************************"
             print "L O S E R"

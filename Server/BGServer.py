@@ -26,6 +26,11 @@ class BGServer(threading.Thread):
         self.__logger = logger
         self.__heartbeat = BGHeartbeat.BGHeartbeat(self)
 
+    def __del__(self):
+        self.__heartbeat.stop()
+        self.__serverSocket.close()
+        self.__logger.stop()
+
     def run(self):
         self.__heartbeat.start()
         self.__serverSocket.bind(("", 18475))
@@ -34,16 +39,19 @@ class BGServer(threading.Thread):
         self.log_message("Server started!")
         while running:
             client_socket, client_address = self.__serverSocket.accept()
+            self.log_message("New player arrives to the server,IP:%s, Port:%s" % client_address)
             new_player = Player.Player(self, client_socket, client_address)
             self.add_player_to_dictionary(client_address, new_player)
             new_player.start()
-            self.log_message("New player arrives to the server,IP:%s, Port:%s" % client_address)
+            self.log_message("New player started: IP:%s, Port:%s" % client_address)
             if __debug__:
                 print "New player arrives to the server"
+        self.__serverSocket.close()
+        self.log_message("Server is closed!")
 
     def add_player_to_dictionary(self, client_address, new_player):
         self.__playerDictionary[client_address] = new_player
-        self.log_message("Player added to the dictionary, %s" % new_player.playerName)
+        self.log_message("Player added to the dictionary, Ip:%s, Port:%s" % new_player.clientAddress)
 
     def remove_player(self, client_address):
         player = self.__playerDictionary.pop(client_address, None)
@@ -56,6 +64,7 @@ class BGServer(threading.Thread):
         for user in self.__playerDictionary.values():
             assert isinstance(user, Player.Player)
             if user.playerName == user_name and user.isConnected:
+                self.log_message("User exists, client must choose another name %s" % user_name)
                 return True
 
         return False
@@ -73,7 +82,8 @@ class BGServer(threading.Thread):
         else:
             item = self.__clientQueue.get()
             if item.playerName != player.playerName and item.isConnected:
-                self.log_message("opponent found for player %s, opponent name is %s" % (player.playerName, item.playerName))
+                self.log_message("Opponent found for player %s, opponent name is %s" %
+                                 (player.playerName, item.playerName))
                 return item
             else:
                 self.__add_to_play_queue(item)
@@ -98,7 +108,7 @@ class BGServer(threading.Thread):
         game = BGGame.BGGame(self, black, white)
         self.__gameList.append(game)
         game.start()
-        self.log_message("Game created and started for players: (gameId:%s), players: %s and, %s" %
+        self.log_message("Game created and started for players: (gameId:%s), players: %s vs. %s" %
                          (game.gameId, game.blackPlayer.playerName, game.whitePlayer.playerName))
 
     def remove_game(self, game):
@@ -106,7 +116,10 @@ class BGServer(threading.Thread):
         self.log_message("Game removed from list (game_id:%s)" % game.gameId)
 
     def is_server_available(self):
-        return self.__playerDictionary.__len__() < BGServer.MAX_NUM_OF_USERS
+        result = self.__playerDictionary.__len__() < BGServer.MAX_NUM_OF_USERS
+        if not result:
+            self.log_message("Server is FULL")
+        return result
 
     def log_message(self, message):
         self.__logger.log_message(message)
@@ -115,11 +128,14 @@ class BGServer(threading.Thread):
         for name in self.__heartbeat.disconnectedClients:
             for player in self.__playerDictionary.values():
                 if player.playerName == name:
+                    self.log_message("Disconnected client found: %s" % name)
                     self.remove_player(player.clientAddress)
                     game = player.get_game()
                     if game is not None:
+                        self.log_message("Trying to end of the game of the disconnected client, %s" % name)
                         assert isinstance(game, BGGame.BGGame)
                         game.player_left(player)
+
 
 # Main Module --------------------------------------------------------------------
 def main():

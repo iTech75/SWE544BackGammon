@@ -36,35 +36,40 @@ class Player(threading.Thread):
                 request = self.__clientSocket.recv(1024)
                 response = self.__parse_request(request)
                 self.__clientSocket.send(response)
+                self.__bgserver.log_message("Player says: request:%s, response:%s" % (request, response))
                 # if game has been commenced then wait for it to conclude
                 while self.__activeGame is not None:
                     time.sleep(3)
             except socket.error as e:
-                print "Exception occurred, message is : " + e.strerror + "_" + str(e.errno)
+                message = "Exception occurred in Player.py (run), message is : " + e.strerror + "_" + str(e.errno)
+                print message
+                self.__bgserver.log_message(message)
                 running = False
 
         self.__clientSocket.close()
         self.__bgserver.remove_player(self.clientAddress)
-        print self.playerName + " is disconnected..."
+        message = self.playerName + " is disconnected..."
+        print message
+        self.__bgserver.log_message(message)
 
     def __parse_request(self, request):
         """
         user request parsed here, protocol lives here
         """
-        if request == "" or request is None:
-            return "ERRORINCOMMAND"
-        commands = request.split("|")
+        response = "ERRORINCOMMAND"
+        if request != "" and request is not None:
+            commands = request.split("|")
 
-        if commands[0] == "CONNECT":
-            return self.__connect(commands)
-        elif commands[0] == "PLAY" and self.__activeGame is None:
-            return self.__play(commands)
-        elif commands[0] == "WATCH" and self.__activeGame is None:
-            return self.__watch(commands)
-        elif commands[0] == "GETSTATUS" and self.__activeGame is not None:
-            return self.__get_status(commands)
-        else:
-            return "ERRORINCOMMAND"
+            if commands[0] == "CONNECT":
+                response = self.__connect(commands)
+            elif commands[0] == "PLAY" and self.__activeGame is None:
+                response = self.__play(commands)
+            elif commands[0] == "WATCH" and self.__activeGame is None:
+                response = self.__watch(commands)
+            elif commands[0] == "GETSTATUS" and self.__activeGame is not None:
+                response = self.__get_status(commands)
+
+        return response
 
     def __connect(self, commands):
         assert isinstance(commands, list)
@@ -76,6 +81,8 @@ class Player(threading.Thread):
                 return "BUSY"
             else:
                 self.isConnected = True
+                self.__bgserver.log_message("Player chooses a name: IP:%s, Port:%s, NAME: %s" %
+                                            (self.clientAddress[0], self.clientAddress[1], self.playerName))
                 return "OK"
         return "ERRORINCOMMAND"
 
@@ -154,9 +161,20 @@ class Player(threading.Thread):
         return self.__activeGame
 
     def send_message(self, message):
-        if self.isConnected:
-            self.__clientSocket.send(message)
-            response = self.__clientSocket.recv(1024)
-            return response
-        else:
+        """
+        Sends a message to the client over socket and gets the response
+        :param message: a string to be send to the client
+        :return: client's answer.
+        """
+        try:
+            if self.isConnected:
+                self.__clientSocket.send(message)
+                response = self.__clientSocket.recv(1024)
+                return response
+            else:
+                return "NOTCONNECTED"
+        except socket.error as e:
+            message = "Exception occurred in Player.py (send_message), message is : " + e.strerror + "_" + str(e.errno)
+            print message
+            self.__bgserver.log_message(message)
             return "NOTCONNECTED"
