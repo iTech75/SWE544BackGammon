@@ -2,9 +2,9 @@ __author__ = 'Tekin.Aytekin'
 import socket
 import threading
 import Queue
+import random
 import Player
 import BGGame
-import random
 import Logger
 import BGHeartbeat
 

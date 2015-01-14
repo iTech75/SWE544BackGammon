@@ -304,7 +304,7 @@ class BGGame(threading.Thread):
                 if roll == self.blackPlayer:
                     black_off += 1
                 else:
-                    white_bar += 1
+                    white_off += 1
             else:
                 # increase target point by 1
                 self.gameStatus[target].count += 1
