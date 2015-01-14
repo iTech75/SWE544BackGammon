@@ -1,9 +1,30 @@
-SWE544 Backgammon Game is proposed for the SWE 544 class project in fall 2014 midterm. 
+Project Installation
+..............................................................
 
-The purpose of the game is to provide a client server environment to support playing 
-backgammon games over network.To keep implementation simple client functionalities 
-and UI can be primitive. Addition of a GUI for the client will be bonus to the project. 
+Prerequisite
+--------------------------------------------------------------
+Below is the version of python that has been used in the 
+implementation of this project.
 
-On the other hand, server component will be the heart of the project containing 
-almost all the functionality in itself. Below is the system functional and non-functional 
-requirements. The protocol will be discussed in a separate document. 
+Python 2.7.9 
+* https://www.python.org/downloads/release/python-279/
+
+Server Component
+--------------------------------------------------------------
+To install server component simple run the following command
+on a machine on which python 2.7.10 is preinstalled. You must
+be in Server folder of the project.
+
+RunServer.bat
+
+
+
+
+
+Clint Component
+--------------------------------------------------------------
+
+To run client component, simply execute the command below in 
+the Client folder:
+
+RunClient.bat
