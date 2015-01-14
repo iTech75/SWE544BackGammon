@@ -79,7 +79,7 @@ class BGGame(threading.Thread):
             self.gameStatus[point_id].color = color
             self.gameStatus[point_id].count = int(count)
 
-        self.__bgserver.log_message("Game status rearraged to %s" % new_status)
+        self.__bgserver.log_message("Game status rearranged to %s" % new_status)
 
     def create_game_status_string(self):
         """

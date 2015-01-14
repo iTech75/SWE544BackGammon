@@ -2,7 +2,6 @@ __author__ = 'Tekin.Aytekin'
 import threading
 import socket
 import string
-# import colorama
 import ClientHeartbeat
 
 
@@ -270,7 +269,6 @@ class BGClient(threading.Thread):
 
 # Main Module --------------------------------------------------------------------
 def main():
-    # colorama.init()
     client = BGClient()
     client.start()
 

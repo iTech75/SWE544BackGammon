@@ -34,7 +34,7 @@ class Player(threading.Thread):
         while running:
             try:
                 request = self.__clientSocket.recv(1024)
-                response = self.__parse_request(request)
+                response, running = self.__parse_request(request)
                 self.__clientSocket.send(response)
                 self.__bgserver.log_message("Player says: request:%s, response:%s" % (request, response))
                 # if game has been commenced then wait for it to conclude
@@ -57,11 +57,12 @@ class Player(threading.Thread):
         user request parsed here, protocol lives here
         """
         response = "ERRORINCOMMAND"
+        running = True
         if request != "" and request is not None:
             commands = request.split("|")
 
             if commands[0] == "CONNECT":
-                response = self.__connect(commands)
+                response, running = self.__connect(commands)
             elif commands[0] == "PLAY" and self.__activeGame is None:
                 response = self.__play(commands)
             elif commands[0] == "WATCH" and self.__activeGame is None:
@@ -69,22 +70,22 @@ class Player(threading.Thread):
             elif commands[0] == "GETSTATUS" and self.__activeGame is not None:
                 response = self.__get_status(commands)
 
-        return response
+        return response, running
 
     def __connect(self, commands):
         assert isinstance(commands, list)
         if len(commands) == 2:
             self.playerName = commands[1]
             if self.__bgserver.is_user_exists(self.playerName):
-                return "USEREXISTS"
+                return "USEREXISTS", False
             if not self.__bgserver.is_server_available():
-                return "BUSY"
+                return "BUSY", False
             else:
                 self.isConnected = True
                 self.__bgserver.log_message("Player chooses a name: IP:%s, Port:%s, NAME: %s" %
                                             (self.clientAddress[0], self.clientAddress[1], self.playerName))
-                return "OK"
-        return "ERRORINCOMMAND"
+                return "OK", True
+        return "ERRORINCOMMAND", True
 
     def __play(self, commands):
         assert isinstance(commands, list)
