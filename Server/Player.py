@@ -64,11 +64,11 @@ class Player(threading.Thread):
             if commands[0] == "CONNECT":
                 response, running = self.__connect(commands)
             elif commands[0] == "PLAY" and self.__activeGame is None:
-                response = self.__play(commands)
+                response, running = self.__play(commands)
             elif commands[0] == "WATCH" and self.__activeGame is None:
-                response = self.__watch(commands)
+                response, running = self.__watch(commands)
             elif commands[0] == "GETSTATUS" and self.__activeGame is not None:
-                response = self.__get_status(commands)
+                response, running = self.__get_status(commands)
 
         return response, running
 
@@ -98,7 +98,7 @@ class Player(threading.Thread):
             color = "w"
             if self.__activeGame.blackPlayer == self:
                 color = "b"
-            return "OPPONENT|%s|%s" % (opponent.playerName, color)
+            return "OPPONENT|%s|%s" % (opponent.playerName, color), True
         else:
             # game queue is empty, wait for someone else to select you!
             start_time = time.time()
@@ -108,13 +108,13 @@ class Player(threading.Thread):
                 elapsed_time = time.time()-start_time
 
             if elapsed_time >= BGServer.BGServer.TIMEOUT_TO_FIND_OPPONENT:
-                return "NOOPPONENT"
+                return "NOOPPONENT", False
 
             if self.__activeGame is not None:
                 if self.__activeGame.whitePlayer != self:
-                    return "OPPONENT|%s|%s" % (self.__activeGame.whitePlayer.playerName, "b")
+                    return "OPPONENT|%s|%s" % (self.__activeGame.whitePlayer.playerName, "b"), True
                 else:
-                    return "OPPONENT|%s|%s" % (self.__activeGame.blackPlayer.playerName, "w")
+                    return "OPPONENT|%s|%s" % (self.__activeGame.blackPlayer.playerName, "w"), True
 
     def __watch(self, commands):
         assert isinstance(commands, list)
@@ -130,22 +130,22 @@ class Player(threading.Thread):
                 self.__clientSocket.send("ID|%s|%s|%s" % (game.gameId, game.blackPlayer.playerName,
                                                           game.whitePlayer.playerName))
                 request = self.__clientSocket.recv(1024)
-                response = self.__parse_request(request)
-                return response
+                response, running = self.__parse_request(request)
+                return response, running
             else:
-                return "BUSY"
+                return "BUSY", False
         else:
             # No active game
-            return "NOACTIVEMATCHUP"
+            return "NOACTIVEMATCHUP", False
 
     def __get_status(self, commands):
         assert isinstance(commands, list)
         if len(commands) == 2:
             if self.__activeGame is not None:
-                return "STATUS%s" % self.__activeGame.create_game_status_string()
+                return "STATUS%s" % self.__activeGame.create_game_status_string(), True
             else:
-                return "NOGAME"
-        return "ERRORINCOMMAND"
+                return "NOGAME", False
+        return "ERRORINCOMMAND", True
 
     def set_game(self, game):
         if game is not None:
